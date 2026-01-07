@@ -62,7 +62,7 @@ def fiche_nom():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM clients WHERE nom LIKE ?", (nom,))
+    cursor.execute("SELECT * FROM clients WHERE nom LIKE ?", (f"%{nom}%",))
     data = cursor.fetchall()
     conn.close()
 
