@@ -21,7 +21,7 @@ def user_required():
         return False
     return True
 
-@app.route('/fiche_nom/', methods=['GET'])
+@app.route('/fiche_nom', methods=['GET'])
 def fiche_nom():
     # Contrôle d'accès USER (différent de l'admin)
     if not user_required():
@@ -69,7 +69,7 @@ def fiche_nom():
     # Affichage des résultats (réutilise ton template si tu veux)
     return render_template('read_data.html', data=data)
 
-#*************************************************************************************#
+#*************************************************************************************
 
 
 @app.route('/')
