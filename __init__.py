@@ -21,7 +21,7 @@ def user_required():
         return False
     return True
 
-@app.route('/fiche_nom', methods=['GET'])
+@app.route('/fiche_nom/', methods=['GET'])
 def fiche_nom():
     # Contrôle d'accès USER (différent de l'admin)
     if not user_required():
