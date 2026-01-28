@@ -2,25 +2,39 @@ import sqlite3
 
 connection = sqlite3.connect('database.db')
 
-with open('schema.sql') as f:
+with open('schema.sql', encoding="utf-8") as f:
     connection.executescript(f.read())
 
 cur = connection.cursor()
 
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('DUPONT', 'Emilie', '123, Rue des Lilas, 75001 Paris'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('LEROUX', 'Lucas', '456, Avenue du Soleil, 31000 Toulouse'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('MARTIN', 'Amandine', '789, Rue des Érables, 69002 Lyon'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('TREMBLAY', 'Antoine', '1010, Boulevard de la Mer, 13008 Marseille'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('LAMBERT', 'Sarah', '222, Avenue de la Liberté, 59000 Lille'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('GAGNON', 'Nicolas', '456, Boulevard des Cerisiers, 69003 Lyon'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('DUBOIS', 'Charlotte', '789, Rue des Roses, 13005 Marseille'))
-cur.execute("INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",('LEFEVRE', 'Thomas', '333, Rue de la Paix, 75002 Paris'))
+# --- Clients (optionnel) ---
+clients = [
+    ('DUPONT', 'Emilie', '123, Rue des Lilas, 75001 Paris'),
+    ('LEROUX', 'Lucas', '456, Avenue du Soleil, 31000 Toulouse'),
+    ('MARTIN', 'Amandine', '789, Rue des Érables, 69002 Lyon'),
+    ('TREMBLAY', 'Antoine', '1010, Boulevard de la Mer, 13008 Marseille'),
+    ('LAMBERT', 'Sarah', '222, Avenue de la Liberté, 59000 Lille'),
+    ('GAGNON', 'Nicolas', '456, Boulevard des Cerisiers, 69003 Lyon'),
+    ('DUBOIS', 'Charlotte', '789, Rue des Roses, 13005 Marseille'),
+    ('LEFEVRE', 'Thomas', '333, Rue de la Paix, 75002 Paris'),
+]
 
-# Utilisateurs
-cur.execute("INSERT INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",("admin", "password", "admin"))
-cur.execute("INSERT INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",("user", "12345", "user"))
+cur.executemany(
+    "INSERT INTO clients (nom, prenom, adresse) VALUES (?, ?, ?)",
+    clients
+)
 
-# Livres (exemples)
+# --- Utilisateurs (évite les doublons) ---
+cur.execute(
+    "INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",
+    ("admin", "password", "admin")
+)
+cur.execute(
+    "INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",
+    ("user", "12345", "user")
+)
+
+# --- Livres (évite doublons grâce à ISBN UNIQUE + INSERT OR IGNORE) ---
 livres = [
     ("Le Petit Prince", "Antoine de Saint-Exupéry", "9782070612758", 3, 3),
     ("1984", "George Orwell", "9780451524935", 2, 2),
@@ -29,7 +43,12 @@ livres = [
     ("Les Misérables", "Victor Hugo", "9782253004226", 2, 2),
 ]
 
-cur.executemany("INSERT INTO livres (titre, auteur, isbn, stock_total, stock_disponible) VALUES (?, ?, ?, ?, ?)",livres)
+cur.executemany(
+    "INSERT OR IGNORE INTO livres (titre, auteur, isbn, stock_total, stock_disponible) VALUES (?, ?, ?, ?, ?)",
+    livres
+)
 
 connection.commit()
 connection.close()
+
+print("✅ Base créée / mise à jour avec utilisateurs + livres.")
