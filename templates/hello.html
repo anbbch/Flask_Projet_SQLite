@@ -1,3 +1,71 @@
+ <!-- <!doctype html>
+#<title>Flask Server</title>
+#<h1> Hello from Flask Server !</h1>-->
 <!doctype html>
-<title>Flask Server</title>
-<h1> Hello from Flask Server !</h1>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Flask Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 60px;
+            background-color: #f9f9f9;
+        }
+        .box {
+            max-width: 420px;
+            padding: 30px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-bottom: 25px;
+        }
+        a.button {
+            display: block;
+            text-align: center;
+            padding: 12px;
+            margin: 12px 0;
+            text-decoration: none;
+            color: white;
+            background-color: #007BFF;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        a.button.admin {
+            background-color: #28a745;
+        }
+        a.button:hover {
+            opacity: 0.9;
+        }
+        .hint {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h1>👋 Hello from Flask Server !</h1>
+
+        <!-- Accès bibliothèque -->
+        <a class="button" href="/api/livres">
+            📚 Accéder à la bibliothèque
+        </a>
+
+        <!-- Accès admin -->
+        <a class="button admin" href="/authentification">
+            🔐 Connexion administrateur
+        </a>
+
+        <div class="hint">
+            Utilisateur : <b>user / 12345</b> (Basic Auth)<br>
+            Admin : <b>admin / password</b>
+        </div>
+    </div>
+
+</body>
+</html>
