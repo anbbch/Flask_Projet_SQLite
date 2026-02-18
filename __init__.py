@@ -194,6 +194,17 @@ def enregistrer_client():
     conn.close()
     return redirect('/consultation/')  # Rediriger vers la page d'accueil après l'enregistrement
 
+@app.route('/livres')
+def livres_page():
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM livres WHERE stock_disponible > 0 ORDER BY titre")
+    livres = cur.fetchall()
+    conn.close()
+    return render_template("livres.html", livres=livres, user=current_user())
+
+
 
 # =========================================================
 #               API BIBLIOTHEQUE (simple)
