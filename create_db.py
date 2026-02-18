@@ -42,6 +42,19 @@ cur.executemany(
     livres
 )
 
+# Tâches (exemples)
+cur.execute("SELECT id FROM utilisateurs WHERE username='user'")
+user_id = cur.fetchone()[0]
+
+taches = [
+    (user_id, "Finir le TP Flask", "Ajouter l'API et tester sur AlwaysData", "2026-02-20", 0),
+    (user_id, "Relire le cours", "Sessions + SQLite + routes", "2026-02-22", 1),
+]
+cur.executemany(
+    "INSERT INTO taches (utilisateur_id, titre, description, date_echeance, terminee) VALUES (?, ?, ?, ?, ?)",
+    taches
+)
+
 connection.commit()
 connection.close()
 
