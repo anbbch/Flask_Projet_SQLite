@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Mes tâches</title>
+</head>
+<body>
+  <h1>✅ Mini gestionnaire de tâches</h1>
+
+  <p><a href="/">⬅ Retour accueil</a></p>
+
+  <h2>Ajouter une tâche</h2>
+  <form method="post" action="/taches/ajouter">
+    <p>
+      <label>Titre</label><br>
+      <input name="titre" required>
+    </p>
+    <p>
+      <label>Description</label><br>
+      <textarea name="description" rows="3" required></textarea>
+    </p>
+    <p>
+      <label>Date d'échéance</label><br>
+      <input type="date" name="date_echeance">
+    </p>
+    <button type="submit">Ajouter</button>
+  </form>
+
+  <hr>
+
+  <h2>Mes tâches</h2>
+
+  {% if taches|length == 0 %}
+    <p>Aucune tâche.</p>
+  {% else %}
+    <ul>
+      {% for t in taches %}
+        <li>
+          <b>{{ t["titre"] }}</b>
+          {% if t["terminee"] == 1 %} ✅ (terminée) {% endif %}
+          {% if t["date_echeance"] %} — échéance : {{ t["date_echeance"] }} {% endif %}
+          <br>
+          {{ t["description"] }}
+
+          <form method="post" action="/taches/terminer/{{ t['id'] }}" style="display:inline;">
+            <button type="submit">
+              {% if t["terminee"] == 1 %}Marquer non terminée{% else %}Marquer terminée{% endif %}
+            </button>
+          </form>
+
+          <form method="post" action="/taches/supprimer/{{ t['id'] }}" style="display:inline;">
+            <button type="submit">Supprimer</button>
+          </form>
+        </li>
+        <hr>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</body>
+</html>
