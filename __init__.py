@@ -430,6 +430,103 @@ def api_admin_add_user():
     conn.close()
     return jsonify({"message": "user_added", "id": new_id})
 
+# =========================================================
+#               MINI GESTIONNAIRE DE TÂCHES
+# =========================================================
+
+@app.route('/taches', methods=['GET'])
+def page_taches():
+    # On protège la page par Basic Auth user
+    if not user_required():
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    user_id = get_user_id_basic()
+    if not user_id:
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT * FROM taches
+        WHERE utilisateur_id=?
+        ORDER BY terminee ASC, date_echeance IS NULL, date_echeance ASC, id DESC
+    """, (user_id,))
+    taches = cur.fetchall()
+    conn.close()
+
+    return render_template('taches.html', taches=taches)
+
+
+@app.route('/taches/ajouter', methods=['POST'])
+def ajouter_tache():
+    if not user_required():
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    user_id = get_user_id_basic()
+    if not user_id:
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    titre = (request.form.get('titre') or "").strip()
+    description = (request.form.get('description') or "").strip()
+    date_echeance = (request.form.get('date_echeance') or "").strip() or None
+
+    if titre == "" or description == "":
+        return redirect('/taches')
+
+    conn = sqlite3.connect('database.db')
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO taches (utilisateur_id, titre, description, date_echeance, terminee) VALUES (?, ?, ?, ?, 0)",
+        (user_id, titre, description, date_echeance)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect('/taches')
+
+
+@app.route('/taches/supprimer/<int:tache_id>', methods=['POST'])
+def supprimer_tache(tache_id):
+    if not user_required():
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    user_id = get_user_id_basic()
+    if not user_id:
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    conn = sqlite3.connect('database.db')
+    cur = conn.cursor()
+    # supprime uniquement si la tâche appartient à l'user
+    cur.execute("DELETE FROM taches WHERE id=? AND utilisateur_id=?", (tache_id, user_id))
+    conn.commit()
+    conn.close()
+
+    return redirect('/taches')
+
+
+@app.route('/taches/terminer/<int:tache_id>', methods=['POST'])
+def toggle_terminee(tache_id):
+    if not user_required():
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    user_id = get_user_id_basic()
+    if not user_id:
+        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+
+    conn = sqlite3.connect('database.db')
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("SELECT terminee FROM taches WHERE id=? AND utilisateur_id=?", (tache_id, user_id))
+    row = cur.fetchone()
+    if row:
+        new_value = 0 if row["terminee"] == 1 else 1
+        cur.execute("UPDATE taches SET terminee=? WHERE id=? AND utilisateur_id=?", (new_value, tache_id, user_id))
+        conn.commit()
+
+    conn.close()
+    return redirect('/taches')
                                                                                                                                        
 if __name__ == "__main__":
   app.run(debug=True)
