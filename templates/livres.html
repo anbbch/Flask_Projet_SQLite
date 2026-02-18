@@ -3,23 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <title>Livres disponibles</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background:#f7f7f7; }
+    .box { background:#fff; padding:20px; border-radius:10px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); max-width: 900px; }
+    .row { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    table { width:100%; border-collapse:collapse; margin-top:15px; }
+    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
+    .btn { display:inline-block; padding:8px 10px; border-radius:6px; text-decoration:none; border:0; cursor:pointer; }
+    .btn-blue { background:#007BFF; color:#fff; }
+    .btn-red { background:#dc3545; color:#fff; }
+    .btn-green { background:#28a745; color:#fff; }
+    .btn-gray { background:#6c757d; color:#fff; }
+    input { padding:8px; border-radius:6px; border:1px solid #ddd; }
+    .small { font-size: 0.9em; color:#666; }
+    .admin { margin-top:25px; padding-top:15px; border-top:1px dashed #ddd; }
+  </style>
 </head>
 <body>
-  <h1>📚 Livres disponibles</h1>
+  <div class="box">
+    <div class="row">
+      <h2>📚 Livres disponibles</h2>
+      <div>
+        <a class="btn btn-gray" href="/">⬅ Accueil</a>
+        {% if user %}
+          <a class="btn btn-blue" href="/mes-emprunts">📦 Mes emprunts</a>
+        {% endif %}
+      </div>
+    </div>
 
-  <p><a href="/">⬅ Retour accueil</a></p>
+    <form method="get" action="/livres" class="row" style="margin-top:10px;">
+      <div>
+        <input type="text" name="q" placeholder="Rechercher (titre, auteur, isbn)" value="{{ q or '' }}" style="min-width:300px;">
+        <button class="btn btn-blue" type="submit">Rechercher</button>
+        <a class="btn btn-gray" href="/livres">Reset</a>
+      </div>
+      <div class="small">
+        {% if user %}
+          Connecté : <b>{{ user.username }}</b> ({{ user.role }})
+        {% else %}
+          Non connecté
+        {% endif %}
+      </div>
+    </form>
 
-  {% if livres|length == 0 %}
-    <p>Aucun livre disponible.</p>
-  {% else %}
-    <ul>
-      {% for l in livres %}
-        <li>
-          <b>{{ l["titre"] }}</b> — {{ l["auteur"] }}
-          ({{ l["stock_disponible"] }}/{{ l["stock_total"] }} dispo)
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+    <table>
+      <thead>
+        <tr>
+          <th>Titre</th>
+          <th>Auteur</th>
+          <th>ISBN</th>
+          <th>Dispo</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in livres %}
+        <tr>
+          <td>{{ l.titre }}</td>
+          <td>{{ l.auteur }}</td>
+          <td>{{ l.isbn or "-" }}</td>
+          <td>{{ l.stock_disponible }} / {{ l.stock_total }}</td>
+          <td>
+            {% if user %}
+              <form method="post" action="/livres/emprunter/{{ l.id }}" style="display:inline;">
+                <button class="btn btn-green" type="submit">Emprunter</button>
+              </form>
+            {% else %}
+              <a class="btn btn-blue" href="/authentification">Se connecter</a>
+            {% endif %}
+
+            {% if user and user.role == "admin" %}
+              <form method="post" action="/admin/livres/supprimer/{{ l.id }}" style="display:inline;">
+                <button class="btn btn-red" type="submit">Supprimer</button>
+              </form>
+
+              <form method="post" action="/admin/livres/stock/{{ l.id }}" style="display:inline;">
+                <input type="number" name="stock_total" min="0" value="{{ l.stock_total }}" style="width:80px;">
+                <button class="btn btn-gray" type="submit">Stock</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        {% if livres|length == 0 %}
+        <tr><td colspan="5" class="small">Aucun livre disponible.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {% if user and user.role == "admin" %}
+    <div class="admin">
+      <h3>🛠 Admin - Ajouter un livre</h3>
+      <form method="post" action="/admin/livres/ajouter" class="row" style="gap:10px;">
+        <input name="titre" placeholder="Titre" required style="flex:2;">
+        <input name="auteur" placeholder="Auteur" required style="flex:2;">
+        <input name="isbn" placeholder="ISBN (optionnel)" style="flex:2;">
+        <input name="stock_total" type="number" min="0" value="1" style="width:120px;">
+        <button class="btn btn-green" type="submit">Ajouter</button>
+      </form>
+
+      <div style="margin-top:10px;">
+        <a class="btn btn-blue" href="/admin/users">👤 Gestion utilisateurs</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 </body>
 </html>
