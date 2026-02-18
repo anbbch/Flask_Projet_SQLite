@@ -45,3 +45,20 @@ CREATE TABLE emprunts (
     FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id),
     FOREIGN KEY (livre_id) REFERENCES livres(id)
 );
+
+-- =========================
+-- MINI GESTIONNAIRE DE TÂCHES
+-- =========================
+
+DROP TABLE IF EXISTS taches;
+
+CREATE TABLE taches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    utilisateur_id INTEGER NOT NULL,
+    titre TEXT NOT NULL,
+    description TEXT NOT NULL,
+    date_echeance DATE,
+    terminee INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (utilisateur_id) REFERENCES utilisateurs(id)
+);
