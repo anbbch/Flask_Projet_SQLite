@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Livres disponibles</title>
+</head>
+<body>
+  <h1>📚 Livres disponibles</h1>
+
+  <p><a href="/">⬅ Retour accueil</a></p>
+
+  {% if livres|length == 0 %}
+    <p>Aucun livre disponible.</p>
+  {% else %}
+    <ul>
+      {% for l in livres %}
+        <li>
+          <b>{{ l["titre"] }}</b> — {{ l["auteur"] }}
+          ({{ l["stock_disponible"] }}/{{ l["stock_total"] }} dispo)
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</body>
+</html>
