@@ -25,14 +25,8 @@ cur.executemany(
 )
 
 # --- Utilisateurs (évite les doublons) ---
-cur.execute(
-    "INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",
-    ("admin", "password", "admin")
-)
-cur.execute(
-    "INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",
-    ("user", "12345", "user")
-)
+cur.execute("INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",("admin", "password", "admin"))
+cur.execute("INSERT OR IGNORE INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",("user", "12345", "user"))
 
 # --- Livres (évite doublons grâce à ISBN UNIQUE + INSERT OR IGNORE) ---
 livres = [
