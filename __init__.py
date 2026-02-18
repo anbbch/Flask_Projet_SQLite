@@ -21,10 +21,6 @@ def user_required():
 def admin_required():
     return is_admin()
 
-def admin_required():
-    # Ton admin est géré par la session (/authentification)
-    return est_authentifie()
-
 def current_user():
     # Exemple: {"id": 2, "username": "user", "role": "user"}
     return session.get("user")
@@ -356,11 +352,11 @@ def api_admin_stock(livre_id):
 @app.route('/api/user/emprunter', methods=['POST'])
 def api_user_emprunter():
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+        return jsonify({"error": "login_required"}), 401
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+        return jsonify({"error": "login_required"}), 401
 
     data = request.get_json(silent=True) or {}
     livre_id = data.get("livre_id")
@@ -398,11 +394,11 @@ def api_user_emprunter():
 @app.route('/api/user/retour/<int:emprunt_id>', methods=['POST'])
 def api_user_retour(emprunt_id):
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+        return jsonify({"error": "login_required"}), 401
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+        return jsonify({"error": "login_required"}), 401
 
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
@@ -484,11 +480,11 @@ def api_admin_add_user():
 def page_taches():
     # On protège la page par Basic Auth user
     if not user_required():
-    return redirect(url_for("authentification"))
+        return redirect(url_for("authentification"))
     #if not user_required():
     #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
         return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
@@ -509,11 +505,11 @@ def page_taches():
 @app.route('/taches/ajouter', methods=['POST'])
 def ajouter_tache():
     if not user_required():
-    return redirect(url_for("authentification"))
+        return redirect(url_for("authentification"))
     #if not user_required():
     #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
         return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
@@ -539,12 +535,12 @@ def ajouter_tache():
 @app.route('/taches/supprimer/<int:tache_id>', methods=['POST'])
 def supprimer_tache(tache_id):
     if not user_required():
-    return redirect(url_for("authentification"))
+        return redirect(url_for("authentification"))
 
     #if not user_required():
     #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
         return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
@@ -561,12 +557,12 @@ def supprimer_tache(tache_id):
 @app.route('/taches/terminer/<int:tache_id>', methods=['POST'])
 def toggle_terminee(tache_id):
     if not user_required():
-    return redirect(url_for("authentification"))
+        return redirect(url_for("authentification"))
 
     #if not user_required():
     #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    user_id = get_user_id_basic()
+    user_id = get_user_id()
     if not user_id:
         return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
@@ -583,6 +579,13 @@ def toggle_terminee(tache_id):
 
     conn.close()
     return redirect('/taches')
+
+@app.route('/logout')
+def logout():
+    session.pop("user", None)
+    session.pop("authentifie", None)
+    return redirect(url_for("hello_world"))
+
                                                                                                                                        
 if __name__ == "__main__":
   app.run(debug=True)
