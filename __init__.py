@@ -16,14 +16,33 @@ def est_authentifie():
 # *******************************************************************************
 
 def user_required():
-    auth = request.authorization
-    if not auth or auth.username != "user" or auth.password != "12345":
-        return False
-    return True
+    return is_user()
+
+def admin_required():
+    return is_admin()
 
 def admin_required():
     # Ton admin est géré par la session (/authentification)
     return est_authentifie()
+
+def current_user():
+    # Exemple: {"id": 2, "username": "user", "role": "user"}
+    return session.get("user")
+
+def is_user():
+    u = current_user()
+    return u is not None and u.get("role") in ("user", "admin")  # admin autorisé aussi
+
+def is_admin():
+    u = current_user()
+    return u is not None and u.get("role") == "admin"
+
+def get_user_id():
+    u = current_user()
+    return u["id"] if u else None
+
+
+
 
 def get_user_id_basic():
     # Pour récupérer l'utilisateur (basic auth) dans la table utilisateurs
@@ -94,9 +113,13 @@ def fiche_nom():
 #*************************************************************************************
 
 
+#@app.route('/')
+#def hello_world():
+#    return render_template('hello.html')
 @app.route('/')
 def hello_world():
-    return render_template('hello.html')
+    return render_template('hello.html', user=current_user())
+
 
 @app.route('/lecture')
 def lecture():
@@ -110,16 +133,28 @@ def lecture():
 @app.route('/authentification', methods=['GET', 'POST'])
 def authentification():
     if request.method == 'POST':
-        # Vérifier les identifiants
-        if request.form['username'] == 'admin' and request.form['password'] == 'password': # password à cacher par la suite
-            session['authentifie'] = True
-            # Rediriger vers la route lecture après une authentification réussie
-            return redirect(url_for('lecture'))
-        else:
-            # Afficher un message d'erreur si les identifiants sont incorrects
-            return render_template('formulaire_authentification.html', error=True)
+        username = (request.form.get('username') or "").strip()
+        password = (request.form.get('password') or "").strip()
+
+        conn = sqlite3.connect('database.db')
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT id, username, role FROM utilisateurs WHERE username=? AND password=?",
+                    (username, password))
+        u = cur.fetchone()
+        conn.close()
+
+        if u:
+            # Stocker utilisateur en session
+            session["user"] = {"id": u["id"], "username": u["username"], "role": u["role"]}
+            # optionnel: garder ton flag admin
+            session["authentifie"] = (u["role"] == "admin")
+            return redirect(url_for("hello_world"))
+
+        return render_template('formulaire_authentification.html', error=True)
 
     return render_template('formulaire_authentification.html', error=False)
+
 
 @app.route('/fiche_client/<int:post_id>')
 def Readfiche(post_id):
