@@ -484,7 +484,9 @@ def api_admin_add_user():
 def page_taches():
     # On protège la page par Basic Auth user
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+    return redirect(url_for("authentification"))
+    #if not user_required():
+    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id_basic()
     if not user_id:
@@ -507,7 +509,9 @@ def page_taches():
 @app.route('/taches/ajouter', methods=['POST'])
 def ajouter_tache():
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+    return redirect(url_for("authentification"))
+    #if not user_required():
+    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id_basic()
     if not user_id:
@@ -535,7 +539,10 @@ def ajouter_tache():
 @app.route('/taches/supprimer/<int:tache_id>', methods=['POST'])
 def supprimer_tache(tache_id):
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+    return redirect(url_for("authentification"))
+
+    #if not user_required():
+    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id_basic()
     if not user_id:
@@ -554,7 +561,10 @@ def supprimer_tache(tache_id):
 @app.route('/taches/terminer/<int:tache_id>', methods=['POST'])
 def toggle_terminee(tache_id):
     if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
+    return redirect(url_for("authentification"))
+
+    #if not user_required():
+    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id_basic()
     if not user_id:
