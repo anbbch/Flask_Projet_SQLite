@@ -1,33 +1,31 @@
 from flask import Flask, render_template_string, render_template, jsonify, request, redirect, url_for, session
-from flask import render_template
-from flask import json
-from datetime import datetime
-from urllib.request import urlopen
-from werkzeug.utils import secure_filename
 import sqlite3
+import os
 
-app = Flask(__name__)                                                                                                                  
-app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'  # Clé secrète pour les sessions
+app = Flask(__name__)
+app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 
-# Fonction pour créer une clé "authentifie" dans la session utilisateur
-def est_authentifie():
-    return session.get('authentifie')
+# =========================
+#   DB PATH (AlwaysData)
+# =========================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database.db")
 
-# *******************************************************************************
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-def user_required():
-    return is_user()
-
-def admin_required():
-    return is_admin()
-
+# =========================
+#   SESSION / ROLES
+# =========================
 def current_user():
-    # Exemple: {"id": 2, "username": "user", "role": "user"}
+    # {"id": 2, "username": "user", "role": "user"}
     return session.get("user")
 
 def is_user():
     u = current_user()
-    return u is not None and u.get("role") in ("user", "admin")  # admin autorisé aussi
+    return u is not None and u.get("role") in ("user", "admin")
 
 def is_admin():
     u = current_user()
@@ -37,182 +35,66 @@ def get_user_id():
     u = current_user()
     return u["id"] if u else None
 
-
-
-
-def get_user_id_basic():
-    # Pour récupérer l'utilisateur (basic auth) dans la table utilisateurs
-    auth = request.authorization
-    if not auth:
-        return None
-
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM utilisateurs WHERE username=? AND password=? AND role='user'",
-                (auth.username, auth.password))
-    row = cur.fetchone()
-    conn.close()
-    return row["id"] if row else None
-
-
-
-
-@app.route('/fiche_nom/', methods=['GET'])
-def fiche_nom():
-    # Contrôle d'accès USER (différent de l'admin)
-    if not user_required():
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
-
-    nom = request.args.get('nom', '').strip()
-
-    # Si aucun nom n'est donné, on affiche un mini formulaire
-    if nom == "":
-        return render_template_string("""
-        <!doctype html>
-        <html lang="fr">
-          <head>
-            <meta charset="UTF-8">
-            <title>Recherche client</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; }
-              .box { max-width: 520px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
-              input { width: 100%; padding: 10px; margin: 10px 0; }
-              button { padding: 10px 14px; cursor: pointer; }
-            </style>
-          </head>
-          <body>
-            <div class="box">
-              <h2>Rechercher un client par nom</h2>
-              <form method="get" action="/fiche_nom/">
-                <label for="nom">Nom du client</label>
-                <input id="nom" name="nom" placeholder="Ex: Dupont" required>
-                <button type="submit">Rechercher</button>
-              </form>
-              <p><i>Accès protégé : user / 12345</i></p>
-            </div>
-          </body>
-        </html>
-        """)
-
-    # Recherche en base
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM clients WHERE nom LIKE ?", (f"%{nom}%",))
-    data = cursor.fetchall()
-    conn.close()
-
-    # Affichage des résultats (réutilise ton template si tu veux)
-    return render_template('read_data.html', data=data)
-
-#*************************************************************************************
-
-
-#@app.route('/')
-#def hello_world():
-#    return render_template('hello.html')
+# =========================
+#   HOME (accessible)
+# =========================
 @app.route('/')
 def hello_world():
     return render_template('hello.html', user=current_user())
 
-
-@app.route('/lecture')
-def lecture():
-    if not est_authentifie():
-        # Rediriger vers la page d'authentification si l'utilisateur n'est pas authentifié
-        return redirect(url_for('authentification'))
-
-  # Si l'utilisateur est authentifié
-    return "<h2>Bravo, vous êtes authentifié</h2>"
-
+# =========================
+#   AUTH (user + admin)
+# =========================
 @app.route('/authentification', methods=['GET', 'POST'])
 def authentification():
     if request.method == 'POST':
         username = (request.form.get('username') or "").strip()
         password = (request.form.get('password') or "").strip()
 
-        conn = sqlite3.connect('database.db')
-        conn.row_factory = sqlite3.Row
+        conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT id, username, role FROM utilisateurs WHERE username=? AND password=?",
-                    (username, password))
+        cur.execute(
+            "SELECT id, username, role FROM utilisateurs WHERE username=? AND password=?",
+            (username, password)
+        )
         u = cur.fetchone()
         conn.close()
 
         if u:
-            # Stocker utilisateur en session
             session["user"] = {"id": u["id"], "username": u["username"], "role": u["role"]}
-            # optionnel: garder ton flag admin
-            session["authentifie"] = (u["role"] == "admin")
             return redirect(url_for("hello_world"))
 
         return render_template('formulaire_authentification.html', error=True)
 
     return render_template('formulaire_authentification.html', error=False)
 
+@app.route('/logout')
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("hello_world"))
 
-@app.route('/fiche_client/<int:post_id>')
-def Readfiche(post_id):
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM clients WHERE id = ?', (post_id,))
-    data = cursor.fetchall()
-    conn.close()
-    # Rendre le template HTML et transmettre les données
-    return render_template('read_data.html', data=data)
-
-@app.route('/consultation/')
-def ReadBDD():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM clients;')
-    data = cursor.fetchall()
-    conn.close()
-    return render_template('read_data.html', data=data)
-
-@app.route('/enregistrer_client', methods=['GET'])
-def formulaire_client():
-    return render_template('formulaire.html')  # afficher le formulaire
-
-@app.route('/enregistrer_client', methods=['POST'])
-def enregistrer_client():
-    nom = request.form['nom']
-    prenom = request.form['prenom']
-
-    # Connexion à la base de données
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-
-    # Exécution de la requête SQL pour insérer un nouveau client
-    cursor.execute('INSERT INTO clients (created, nom, prenom, adresse) VALUES (?, ?, ?, ?)', (1002938, nom, prenom, "ICI"))
-    conn.commit()
-    conn.close()
-    return redirect('/consultation/')  # Rediriger vers la page d'accueil après l'enregistrement
-
+# =========================
+#   PAGE LIVRES (HTML)
+# =========================
 @app.route('/livres')
 def livres_page():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    # accessible sans login
+    conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM livres WHERE stock_disponible > 0 ORDER BY titre")
     livres = cur.fetchall()
     conn.close()
     return render_template("livres.html", livres=livres, user=current_user())
 
-
-
 # =========================================================
-#               API BIBLIOTHEQUE (simple)
+#               API BIBLIOTHEQUE (inchangée)
 # =========================================================
 
-# 1) Liste + recherche livres (q=...)
 @app.route('/api/livres', methods=['GET'])
 def api_livres():
     q = request.args.get('q', '').strip()
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
 
     if q:
@@ -228,14 +110,11 @@ def api_livres():
     conn.close()
     return jsonify([dict(r) for r in data])
 
-
-# 2) Livres disponibles uniquement
 @app.route('/api/livres_disponibles', methods=['GET'])
 def api_livres_disponibles():
     q = request.args.get('q', '').strip()
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
 
     if q:
@@ -252,11 +131,10 @@ def api_livres_disponibles():
     conn.close()
     return jsonify([dict(r) for r in data])
 
-
-# 3) ADMIN : ajouter un livre
+# ===== ADMIN : ajouter un livre
 @app.route('/api/admin/ajouter_livre', methods=['POST'])
 def api_admin_ajouter_livre():
-    if not admin_required():
+    if not is_admin():
         return jsonify({"error": "admin_required"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -268,7 +146,7 @@ def api_admin_ajouter_livre():
     if not titre or not auteur or stock_total < 0:
         return jsonify({"error": "invalid_payload"}), 400
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db()
     cur = conn.cursor()
     try:
         cur.execute("""
@@ -284,14 +162,13 @@ def api_admin_ajouter_livre():
     conn.close()
     return jsonify({"message": "livre_ajoute", "id": new_id})
 
-
-# 4) ADMIN : supprimer un livre (si pas d'emprunt en cours)
+# ===== ADMIN : supprimer livre
 @app.route('/api/admin/supprimer_livre/<int:livre_id>', methods=['DELETE'])
 def api_admin_supprimer_livre(livre_id):
-    if not admin_required():
+    if not is_admin():
         return jsonify({"error": "admin_required"}), 401
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db()
     cur = conn.cursor()
 
     cur.execute("SELECT COUNT(*) FROM emprunts WHERE livre_id=? AND statut='EN_COURS'", (livre_id,))
@@ -308,11 +185,10 @@ def api_admin_supprimer_livre(livre_id):
         return jsonify({"error": "not_found"}), 404
     return jsonify({"message": "livre_supprime"})
 
-
-# 5) ADMIN : modifier stock_total (auto ajuste stock_disponible)
+# ===== ADMIN : stock
 @app.route('/api/admin/stock/<int:livre_id>', methods=['PATCH'])
 def api_admin_stock(livre_id):
-    if not admin_required():
+    if not is_admin():
         return jsonify({"error": "admin_required"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -324,8 +200,7 @@ def api_admin_stock(livre_id):
     if new_total < 0:
         return jsonify({"error": "invalid_stock_total"}), 400
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
 
     cur.execute("SELECT stock_total, stock_disponible FROM livres WHERE id=?", (livre_id,))
@@ -347,24 +222,19 @@ def api_admin_stock(livre_id):
 
     return jsonify({"message": "stock_ok", "stock_total": new_total, "stock_disponible": new_dispo})
 
-
-# 6) USER : emprunter un livre
+# ===== USER : emprunter
 @app.route('/api/user/emprunter', methods=['POST'])
 def api_user_emprunter():
-    if not user_required():
+    if not is_user():
         return jsonify({"error": "login_required"}), 401
 
     user_id = get_user_id()
-    if not user_id:
-        return jsonify({"error": "login_required"}), 401
-
     data = request.get_json(silent=True) or {}
     livre_id = data.get("livre_id")
     if not livre_id:
         return jsonify({"error": "missing_livre_id"}), 400
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
 
     cur.execute("SELECT stock_disponible FROM livres WHERE id=?", (livre_id,))
@@ -376,7 +246,6 @@ def api_user_emprunter():
         conn.close()
         return jsonify({"error": "no_stock"}), 409
 
-    # stock -1 + emprunt
     cur.execute("UPDATE livres SET stock_disponible = stock_disponible - 1 WHERE id=?", (livre_id,))
     cur.execute("""
         INSERT INTO emprunts (utilisateur_id, livre_id, statut)
@@ -389,19 +258,15 @@ def api_user_emprunter():
 
     return jsonify({"message": "emprunt_ok", "emprunt_id": emprunt_id})
 
-
-# 7) USER : retour d'un emprunt
+# ===== USER : retour
 @app.route('/api/user/retour/<int:emprunt_id>', methods=['POST'])
 def api_user_retour(emprunt_id):
-    if not user_required():
+    if not is_user():
         return jsonify({"error": "login_required"}), 401
 
     user_id = get_user_id()
-    if not user_id:
-        return jsonify({"error": "login_required"}), 401
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
@@ -414,7 +279,6 @@ def api_user_retour(emprunt_id):
         conn.close()
         return jsonify({"error": "emprunt_not_found"}), 404
 
-    # set retour + stock +1
     cur.execute("""
         UPDATE emprunts
         SET statut='RETOURNE', date_retour_effective=CURRENT_TIMESTAMP
@@ -428,26 +292,22 @@ def api_user_retour(emprunt_id):
 
     return jsonify({"message": "retour_ok"})
 
-
-# 8) ADMIN : liste utilisateurs
+# ===== ADMIN : users
 @app.route('/api/admin/users', methods=['GET'])
 def api_admin_users():
-    if not admin_required():
+    if not is_admin():
         return jsonify({"error": "admin_required"}), 401
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT id, username, role FROM utilisateurs ORDER BY id DESC")
     data = cur.fetchall()
     conn.close()
     return jsonify([dict(r) for r in data])
 
-
-# 9) ADMIN : ajouter utilisateur
 @app.route('/api/admin/users', methods=['POST'])
 def api_admin_add_user():
-    if not admin_required():
+    if not is_admin():
         return jsonify({"error": "admin_required"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -458,7 +318,7 @@ def api_admin_add_user():
     if not username or not password or role not in ("admin", "user"):
         return jsonify({"error": "invalid_payload"}), 400
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db()
     cur = conn.cursor()
     try:
         cur.execute("INSERT INTO utilisateurs (username, password, role) VALUES (?, ?, ?)",
@@ -478,18 +338,12 @@ def api_admin_add_user():
 
 @app.route('/taches', methods=['GET'])
 def page_taches():
-    # On protège la page par Basic Auth user
-    if not user_required():
+    if not is_user():
         return redirect(url_for("authentification"))
-    #if not user_required():
-    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id()
-    if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
     cur.execute("""
         SELECT * FROM taches
@@ -499,19 +353,14 @@ def page_taches():
     taches = cur.fetchall()
     conn.close()
 
-    return render_template('taches.html', taches=taches)
-
+    return render_template('taches.html', taches=taches, user=current_user())
 
 @app.route('/taches/ajouter', methods=['POST'])
 def ajouter_tache():
-    if not user_required():
+    if not is_user():
         return redirect(url_for("authentification"))
-    #if not user_required():
-    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     user_id = get_user_id()
-    if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
     titre = (request.form.get('titre') or "").strip()
     description = (request.form.get('description') or "").strip()
@@ -520,7 +369,7 @@ def ajouter_tache():
     if titre == "" or description == "":
         return redirect('/taches')
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db()
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO taches (utilisateur_id, titre, description, date_echeance, terminee) VALUES (?, ?, ?, ?, 0)",
@@ -531,45 +380,30 @@ def ajouter_tache():
 
     return redirect('/taches')
 
-
 @app.route('/taches/supprimer/<int:tache_id>', methods=['POST'])
 def supprimer_tache(tache_id):
-    if not user_required():
+    if not is_user():
         return redirect(url_for("authentification"))
 
-    #if not user_required():
-    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
-
     user_id = get_user_id()
-    if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    conn = sqlite3.connect('database.db')
+    conn = get_db()
     cur = conn.cursor()
-    # supprime uniquement si la tâche appartient à l'user
     cur.execute("DELETE FROM taches WHERE id=? AND utilisateur_id=?", (tache_id, user_id))
     conn.commit()
     conn.close()
 
     return redirect('/taches')
 
-
 @app.route('/taches/terminer/<int:tache_id>', methods=['POST'])
 def toggle_terminee(tache_id):
-    if not user_required():
+    if not is_user():
         return redirect(url_for("authentification"))
 
-    #if not user_required():
-    #    return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
-
     user_id = get_user_id()
-    if not user_id:
-        return ("Accès refusé", 401, {'WWW-Authenticate': 'Basic realm="User Area"'})
 
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
+    conn = get_db()
     cur = conn.cursor()
-
     cur.execute("SELECT terminee FROM taches WHERE id=? AND utilisateur_id=?", (tache_id, user_id))
     row = cur.fetchone()
     if row:
@@ -580,12 +414,5 @@ def toggle_terminee(tache_id):
     conn.close()
     return redirect('/taches')
 
-@app.route('/logout')
-def logout():
-    session.pop("user", None)
-    session.pop("authentifie", None)
-    return redirect(url_for("hello_world"))
-
-                                                                                                                                       
 if __name__ == "__main__":
-  app.run(debug=True)
+    app.run(debug=True)
